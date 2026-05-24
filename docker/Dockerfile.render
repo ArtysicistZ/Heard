@@ -1,0 +1,59 @@
+# Render Dockerfile — builds the full backend with config files
+# Usage: Render auto-detects this via render.yaml
+
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.7.20
+FROM ${UV_IMAGE} AS uv-source
+
+FROM python:3.12-slim-bookworm AS builder
+
+ARG NODE_MAJOR=22
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    gnupg \
+    ca-certificates \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=uv-source /uv /uvx /usr/local/bin/
+
+WORKDIR /app
+
+# Copy backend source and install dependencies
+COPY backend ./backend
+RUN --mount=type=cache,target=/root/.cache/uv \
+    cd backend && uv sync
+
+# ── Runtime stage ─────────────────────────────────────────────────────────────
+FROM python:3.12-slim-bookworm
+
+COPY --from=builder /usr/bin/node /usr/bin/node
+COPY --from=builder /usr/lib/node_modules /usr/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/bin/npx
+
+COPY --from=uv-source /uv /uvx /usr/local/bin/
+
+WORKDIR /app
+
+# Copy backend with pre-built virtualenv
+COPY --from=builder /app/backend ./backend
+
+# Copy config files from project root into /app (parent of backend/)
+# The gateway looks for config.yaml in parent directory of backend/
+COPY config.example.yaml ./config.yaml
+COPY extensions_config.example.json ./extensions_config.json
+
+# Copy skills directory
+COPY skills ./skills
+
+# Render uses PORT env var
+ENV PORT=8001
+EXPOSE 8001
+
+CMD ["sh", "-c", "cd backend && PYTHONPATH=. uv run --no-sync uvicorn app.gateway.app:app --host 0.0.0.0 --port ${PORT}"]

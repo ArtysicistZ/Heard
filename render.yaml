@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: heard-backend
+    runtime: docker
+    dockerfilePath: ./docker/Dockerfile.render
+    plan: starter
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: JINA_API_KEY
+        sync: false
+      - key: CICERO_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false

@@ -1,0 +1,78 @@
+# ─── Secrets (NEVER commit) ──────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.development.example
+!.env.production.example
+mcp_config.json
+*.pem
+*.key
+secrets/
+
+# ─── Node / frontend build artifacts ─────────────────────────────────────────
+node_modules/
+.pnpm-store/
+frontend/dist/
+frontend/.next/
+frontend/out/
+.turbo/
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# ─── Coverage / test output ──────────────────────────────────────────────────
+coverage/
+coverage.xml
+htmlcov/
+
+# ─── Docker / runtime caches ─────────────────────────────────────────────────
+docker/.cache/
+sandbox_image_cache.tar
+.playwright-mcp/
+
+# ─── DeerFlow harness state ──────────────────────────────────────────────────
+.deer-flow/
+.omc/
+.agent/
+.gstack/
+.worktrees/
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+logs/
+log/
+*.log
+
+# ─── Local overrides / user skills ───────────────────────────────────────────
+skills/custom/*
+config.yaml.bak
+backend/Dockerfile.langgraph
+
+# ─── IDE / editor ────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ─── OS noise ────────────────────────────────────────────────────────────────
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.local
+
+# ─── Claude Code / local git hooks ───────────────────────────────────────────
+.claude/
+.githooks/
+
+# ─── Legacy ──────────────────────────────────────────────────────────────────
+web/

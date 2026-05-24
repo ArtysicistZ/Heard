@@ -1,0 +1,172 @@
+# DeerFlow Development Environment (Windows-compatible)
+# Usage: docker compose -f docker/docker-compose-dev.yaml up --build
+#
+# Services:
+#   - postgres: Local PostgreSQL database (port 5432 internal)
+#   - nginx: Reverse proxy (port 2026)
+#   - frontend: Frontend Next.js production server (port 3000)
+#   - gateway: Backend Gateway API (port 8001)
+#   - langgraph: LangGraph server (port 2024)
+#
+# Access: http://localhost:2026
+
+services:
+  # ── PostgreSQL Database ────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: deer-flow-postgres
+    command: postgres -p 5433
+    environment:
+      POSTGRES_USER: heard
+      POSTGRES_PASSWORD: heard_dev_password
+      POSTGRES_DB: heard
+      PGPORT: "5433"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U heard -d heard -p 5433"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - deer-flow-dev
+    restart: unless-stopped
+
+  # ── Reverse Proxy ──────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: deer-flow-nginx
+    ports:
+      - "2026:2026"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf.template:ro
+    environment:
+      - LANGGRAPH_UPSTREAM=${LANGGRAPH_UPSTREAM:-langgraph:2024}
+      - LANGGRAPH_REWRITE=${LANGGRAPH_REWRITE:-/}
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        envsubst '$$LANGGRAPH_UPSTREAM $$LANGGRAPH_REWRITE' \
+          < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+        test -e /proc/net/if_inet6 || sed -i '/listen.*\[::\]/d' /etc/nginx/nginx.conf
+        exec nginx -g 'daemon off;'
+    depends_on:
+      - frontend
+      - gateway
+    networks:
+      - deer-flow-dev
+    restart: unless-stopped
+
+  # Frontend - Next.js Production Server (pre-built for fast startup)
+  frontend:
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    build:
+      context: ../
+      dockerfile: frontend/Dockerfile
+      target: prod
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-}
+    container_name: deer-flow-frontend
+    command: sh -c "cd /app/frontend && pnpm start"
+    working_dir: /app
+    environment:
+      - NODE_ENV=production
+      - DEER_FLOW_INTERNAL_GATEWAY_BASE_URL=http://gateway:8001
+      - DEER_FLOW_INTERNAL_LANGGRAPH_BASE_URL=http://langgraph:2024
+      - BETTER_AUTH_URL=http://localhost:2026
+      - DATABASE_URL=postgresql://heard:heard_dev_password@postgres:5433/heard
+      - AUTH_SECRET=heard-docker-local-secret-32-chars-ok
+      - BETTER_AUTH_SECRET=heard-docker-local-secret-32-chars-ok
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - deer-flow-dev
+    restart: unless-stopped
+
+  # Backend - Gateway API
+  gateway:
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    build:
+      context: ../
+      dockerfile: backend/Dockerfile
+      target: dev
+    container_name: deer-flow-gateway
+    command: >-
+      sh -c "cd backend &&
+      (uv sync || (echo '[startup] uv sync failed; retrying' && uv venv --allow-existing .venv && uv sync)) &&
+      PYTHONPATH=. uv run uvicorn app.gateway.app:app --host 0.0.0.0 --port 8001 --reload --reload-include='*.yaml .env'"
+    volumes:
+      - ../backend/:/app/backend/
+      - gateway-venv:/app/backend/.venv
+      - ../config.yaml:/app/config.yaml
+      - ../extensions_config.json:/app/extensions_config.json
+      - ../skills:/app/skills
+      - gateway-uv-cache:/root/.cache/uv
+    working_dir: /app
+    environment:
+      - CI=true
+      - DEER_FLOW_HOME=/app/backend/.deer-flow
+      - DEER_FLOW_CHANNELS_LANGGRAPH_URL=${DEER_FLOW_CHANNELS_LANGGRAPH_URL:-http://langgraph:2024}
+      - DEER_FLOW_CHANNELS_GATEWAY_URL=${DEER_FLOW_CHANNELS_GATEWAY_URL:-http://gateway:8001}
+      - DATABASE_URL=postgresql://heard:heard_dev_password@postgres:5433/heard
+    env_file:
+      - ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - deer-flow-dev
+    restart: unless-stopped
+
+  # Backend - LangGraph Server
+  langgraph:
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    build:
+      context: ../
+      dockerfile: backend/Dockerfile
+      target: dev
+    container_name: deer-flow-langgraph
+    command: >-
+      sh -c "cd backend &&
+      (uv sync || (echo '[startup] uv sync failed; retrying' && uv venv --allow-existing .venv && uv sync)) &&
+      uv run langgraph dev --no-browser --host 0.0.0.0 --port 2024 --n-jobs-per-worker ${LANGGRAPH_JOBS_PER_WORKER:-10}"
+    volumes:
+      - ../backend/:/app/backend/
+      - langgraph-venv:/app/backend/.venv
+      - ../config.yaml:/app/config.yaml
+      - ../extensions_config.json:/app/extensions_config.json
+      - ../skills:/app/skills
+      - langgraph-uv-cache:/root/.cache/uv
+    working_dir: /app
+    environment:
+      - CI=true
+      - DEER_FLOW_HOME=/app/backend/.deer-flow
+    env_file:
+      - ../.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - deer-flow-dev
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  gateway-venv:
+  langgraph-venv:
+  gateway-uv-cache:
+  langgraph-uv-cache:
+
+networks:
+  deer-flow-dev:
+    driver: bridge
