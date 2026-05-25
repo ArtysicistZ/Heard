@@ -4,7 +4,7 @@
 
 **Turn a personal grievance into political action, in 60 seconds.**
 
-[![Claude x Penn AI Hackathon 2026 — First Place](https://img.shields.io/badge/Claude%20%C3%97%20Penn%20AI%20Hackathon%202026-%F0%9F%A5%87%20First%20Place%20%E2%80%94%20Democratic%20Governance-8A2BE2?style=for-the-badge)](#)
+[![Anthropic x Penn AI Hackathon 2026 — First Place](https://img.shields.io/badge/Anthropic%20%C3%97%20Penn%20AI%20Hackathon%202026-%F0%9F%A5%87%20First%20Place%20%E2%80%94%20Democratic%20Governance-8A2BE2?style=for-the-badge)](#)
 
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](./backend/pyproject.toml) [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](./frontend/package.json) [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](./backend/pyproject.toml) [![LangGraph](https://img.shields.io/badge/LangGraph-Agent_Runtime-1C3C3C?logo=langchain&logoColor=white)](./backend/langgraph.json) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](./docker/docker-compose-dev.yaml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
